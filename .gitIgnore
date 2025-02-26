@@ -1,0 +1,11 @@
+# Ambiente Virtual
+venv/
+__pycache__/
+*.pyc
+
+# Banco de Dados SQLite
+*.db
+*.sqlite3
+
+# Configurações locais
+.env
