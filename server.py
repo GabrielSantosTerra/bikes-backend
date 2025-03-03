@@ -1,5 +1,5 @@
 import uvicorn
-from app.main import app
+from main import app
 from dotenv import load_dotenv
 import os
 
