@@ -69,10 +69,8 @@ def verify_reset_token(token: str):
 @router.post("/users/")
 def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
     # Verificar se o email já existe na tabela de usuários
-    print("LULA LIVRE")
     if db.query(Usuario).filter(Usuario.email == dados.usuario.email).first():
         raise HTTPException(status_code=400, detail="Email já cadastrado")
-    print("BOLSONARO PRESO")
     # Criar Pessoa com um valor padrão para tipo_pessoa
     nova_pessoa = Pessoa(
         tipo_pessoa="PF",  # Define um valor padrão
@@ -82,7 +80,6 @@ def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(nova_pessoa)
 
-    print("TAXADD")
     print(dados.usuario.senha)
     # Criar Usuário associado à Pessoa
     novo_usuario = Usuario(
@@ -93,7 +90,6 @@ def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
-    print("ALEXANDRE")
     return {"message": "Usuário cadastrado com sucesso", "id_pessoa": nova_pessoa.id, "id_usuario": novo_usuario.id}
 
 @router.post("/auth/login/")

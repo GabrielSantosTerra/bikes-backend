@@ -13,7 +13,7 @@ class Pessoa(Base):
     email = Column(String, unique=True, nullable=False)
     data_nascimento = Column(String, nullable=True)
     tipo_pessoa = Column(String, nullable=True)
-    
+
     usuario = relationship("Usuario", back_populates="pessoa")
 
 class Usuario(Base):
