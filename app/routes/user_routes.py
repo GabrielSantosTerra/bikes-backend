@@ -3,25 +3,49 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 from jose import jwt, JWTError
 from fastapi.security import OAuth2PasswordBearer
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 
 from app.database.connection import get_db
-from app.models.user import User
-from app.schemas.user import UserCreate, UserLogin, UserResponse
+from app.models.user import Usuario, Pessoa
+from app.schemas.user import PessoaCreate, UserLogin, UserResponse, CadastroUsuario
 from app.auth.security import get_password_hash, verify_password, create_access_token
 from config.settings import settings
 from app.utils.email_service import send_reset_email
-
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+from passlib.context import CryptContext
 
 router = APIRouter()
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+
+class UserUpdate(BaseModel):
+    nome: str
+    email: str
+    telefone: str
+    cpf: str
+    nascimento: str
+    senha: str | None = None  # Senha é opcional
 
 class PasswordResetRequest(BaseModel):
     email: str
 
 class PasswordResetConfirm(BaseModel):
     token: str
-    new_password: str
+    nova_senha: str
+
+class PessoaCreate(BaseModel):
+    nome_completo: str
+    cpf_cnpj: str
+    telefone_celular: str
+    email: EmailStr
+    data_nascimento: str
+
+class UsuarioCreate(BaseModel):
+    email: EmailStr
+    senha: str
+
+class CadastroUsuario(BaseModel):
+    pessoa: PessoaCreate
+    usuario: UsuarioCreate
 
 def create_reset_token(user_id: int):
     """Gera um token de redefinição de senha com expiração"""
@@ -42,43 +66,56 @@ def verify_reset_token(token: str):
     except JWTError:
         return None
 
-@router.post("/users/", response_model=dict)
-def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    if db.query(User).filter(User.email == user.email).first():
-        raise HTTPException(status_code=400, detail="Email já cadastrado!")
-
-    hashed_password = get_password_hash(user.password)
-    new_user = User(
-        name=user.name,
-        hashed_password=hashed_password,
-        cpf=user.cpf,
-        birth_date=user.birth_date,
-        phone=user.phone,
-        email=user.email
+@router.post("/users/")
+def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
+    # Verificar se o email já existe na tabela de usuários
+    print("LULA LIVRE")
+    if db.query(Usuario).filter(Usuario.email == dados.usuario.email).first():
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
+    print("BOLSONARO PRESO")
+    # Criar Pessoa com um valor padrão para tipo_pessoa
+    nova_pessoa = Pessoa(
+        tipo_pessoa="PF",  # Define um valor padrão
+        **dados.pessoa.dict()
     )
-    db.add(new_user)
+    db.add(nova_pessoa)
     db.commit()
-    db.refresh(new_user)
-    return {"message": "Usuário criado com sucesso"}
+    db.refresh(nova_pessoa)
 
-@router.post("/auth/login")
-def login_for_access_token(user: UserLogin, db: Session = Depends(get_db)):
-    user_auth = db.query(User).filter(User.email == user.email).first()
-    if not user_auth or not verify_password(user.password, user_auth.hashed_password):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciais inválidas")
+    print("TAXADD")
+    print(dados.usuario.senha)
+    # Criar Usuário associado à Pessoa
+    novo_usuario = Usuario(
+        id_pessoa=nova_pessoa.id,
+        email=dados.usuario.email,
+        senha=get_password_hash(dados.usuario.senha)  # Criptografa a senha
+    )
+    db.add(novo_usuario)
+    db.commit()
+    db.refresh(novo_usuario)
+    print("ALEXANDRE")
+    return {"message": "Usuário cadastrado com sucesso", "id_pessoa": nova_pessoa.id, "id_usuario": novo_usuario.id}
 
-    access_token = create_access_token(data={"sub": user_auth.email}, expires_delta=timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES))
-    return {"access_token": access_token, "token_type": "bearer", "user": {"id": user_auth.id, "name": user_auth.name, "email": user_auth.email}}
+@router.post("/auth/login/")
+def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+
+    user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
+
+    if not user or not verify_password(usuario.senha, user.senha):
+        raise HTTPException(status_code=401, detail="Credenciais inválidas")
+
+    print(user.email)
+
+    token = create_access_token({"sub": user.email}, timedelta(minutes=60))
+    return {"token": token, "id_usuario": user.id}
 
 @router.post("/auth/logout")
 def logout(response: Response, token: str = Depends(oauth2_scheme)):
+    """Realiza logout e remove o token"""
     try:
         jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-
-        # Remove o cookie do token
         response.delete_cookie("authToken")
         return {"message": "Logout realizado com sucesso"}
-
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido ou expirado")
 
@@ -88,7 +125,7 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
-        user = db.query(User).filter(User.email == email).first()
+        user = db.query(Usuario).filter(Usuario.email == email).first()
 
         if user is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado")
@@ -99,8 +136,8 @@ def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get
 
 @router.post("/auth/request-password-reset")
 async def request_password_reset(request: PasswordResetRequest, db: Session = Depends(get_db)):
-    """Gera e envia um token de redefinição de senha para o email do usuário"""
-    user = db.query(User).filter(User.email == request.email).first()
+    """Envia token de redefinição de senha por e-mail"""
+    user = db.query(Usuario).filter(Usuario.email == request.email).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
@@ -111,16 +148,60 @@ async def request_password_reset(request: PasswordResetRequest, db: Session = De
 
 @router.post("/auth/reset-password")
 def reset_password(request: PasswordResetConfirm, db: Session = Depends(get_db)):
+    """Redefine a senha do usuário"""
     user_id = verify_reset_token(request.token)
     if user_id is None:
         raise HTTPException(status_code=400, detail="Código inválido ou expirado")
 
-    user = db.query(User).filter(User.id == user_id).first()
+    user = db.query(Usuario).filter(Usuario.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-    user.hashed_password = get_password_hash(request.new_password)
+    user.senha = get_password_hash(request.nova_senha)
     db.commit()
 
     return {"message": "Senha redefinida com sucesso"}
 
+@router.put("/users/update", response_model=UserResponse)
+def update_user(
+    user_data: UserUpdate,
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+):
+    """Atualiza dados do usuário e sincroniza com a tabela de pessoas"""
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_email = payload.get("sub")
+
+        user = db.query(Usuario).filter(Usuario.email == user_email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Buscar pessoa vinculada ao usuário
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+        if not pessoa:
+            raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
+
+        # Atualiza os dados do usuário e da pessoa
+        user.email = user_data.email
+        pessoa.email = user_data.email
+        user.telefone = user_data.telefone
+        pessoa.telefone_celular = user_data.telefone
+        user.cpf = user_data.cpf
+        pessoa.cpf_cnpj = user_data.cpf
+        user.nascimento = user_data.nascimento
+        pessoa.data_nascimento = user_data.nascimento
+        user.nome = user_data.nome
+        pessoa.nome_completo = user_data.nome
+
+        if user_data.senha:
+            user.senha = get_password_hash(user_data.senha)
+
+        db.commit()
+        db.refresh(user)
+        db.refresh(pessoa)
+
+        return user
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
