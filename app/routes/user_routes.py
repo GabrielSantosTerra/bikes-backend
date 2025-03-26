@@ -74,26 +74,32 @@ def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
     # Verificar se o email já existe na tabela de usuários
     if db.query(Usuario).filter(Usuario.email == dados.usuario.email).first():
         raise HTTPException(status_code=400, detail="Email já cadastrado")
-    # Criar Pessoa com um valor padrão para tipo_pessoa
-    nova_pessoa = Pessoa(
-        tipo_pessoa="PF",  # Define um valor padrão
-        **dados.pessoa.dict()
-    )
+
+    # Extrai os dados da pessoa e define tipo_pessoa com base no tamanho do cpf_cnpj
+    pessoa_data = dados.pessoa.dict()
+    pessoa_data["tipo_pessoa"] = "PF" if len(pessoa_data["cpf_cnpj"]) <= 11 else "PJ"
+
+    # Cria a nova pessoa
+    nova_pessoa = Pessoa(**pessoa_data)
     db.add(nova_pessoa)
     db.commit()
     db.refresh(nova_pessoa)
 
-    print(dados.usuario.senha)
-    # Criar Usuário associado à Pessoa
+    # Cria o usuário vinculado
     novo_usuario = Usuario(
         id_pessoa=nova_pessoa.id,
         email=dados.usuario.email,
-        senha=get_password_hash(dados.usuario.senha)  # Criptografa a senha
+        senha=get_password_hash(dados.usuario.senha)
     )
     db.add(novo_usuario)
     db.commit()
     db.refresh(novo_usuario)
-    return {"message": "Usuário cadastrado com sucesso", "id_pessoa": nova_pessoa.id, "id_usuario": novo_usuario.id}
+
+    return {
+        "message": "Usuário cadastrado com sucesso",
+        "id_pessoa": nova_pessoa.id,
+        "id_usuario": novo_usuario.id
+    }
 
 @router.post("/auth/login/")
 def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
