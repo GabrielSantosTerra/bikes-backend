@@ -34,10 +34,13 @@ class PasswordResetConfirm(BaseModel):
 
 class PessoaCreate(BaseModel):
     nome_completo: str
+    fantasia: str
     cpf_cnpj: str
-    telefone_celular: str
     email: EmailStr
+    telefone_celular: str
     data_nascimento: str
+    regime: str
+    tipo_pessoa:str
 
 class UsuarioCreate(BaseModel):
     email: EmailStr

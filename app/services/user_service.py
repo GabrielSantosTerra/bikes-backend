@@ -1,23 +1,27 @@
 from sqlalchemy.orm import Session
 from app.models.user import User, Pessoa
 from app.auth.security import get_password_hash
+from app.schemas.user import UserResponse  # Import UserResponse
 
-def create_user_and_person(db: Session, nome: str, cpf: str, email: str, telefone: str, senha: str, nascimento: str):
+def create_user_and_person(db: Session, nome: str, fantasia: str, cpf_cnpj: str, email: str, telefone: str, senha: str, nascimento: str, regime:str):
     hashed_password = get_password_hash(senha)
 
     # Verifica se já existe CPF ou E-mail cadastrado
-    if db.query(User).filter(User.cpf == cpf).first() or db.query(User).filter(User.email == email).first():
+    if db.query(User).filter(User.cpf == cpf_cnpj).first() or db.query(User).filter(User.email == email).first():
         return None
 
     nova_pessoa = Pessoa(
-        tipo_pessoa="PF",  # Para usuários comuns, será sempre 'PF'
         nome_completo=nome,
-        cpf_cnpj=cpf,
+        fantasia=fantasia,
+        cpf_cnpj=cpf_cnpj,
         email=email,
         telefone_celular=telefone,
-        data_nascimento=nascimento
+        data_nascimento=nascimento,
+        regime=regime,
+        tipo_pessoa="PF"  # Para usuários comuns, será sempre 'PF'
+
     )
-    
+
     db.add(nova_pessoa)
     db.commit()
     db.refresh(nova_pessoa)
@@ -25,7 +29,7 @@ def create_user_and_person(db: Session, nome: str, cpf: str, email: str, telefon
     novo_usuario = User(
         nome=nome,
         senha=hashed_password,
-        cpf=cpf,
+        cpf=cpf_cnpj,
         nascimento=nascimento,
         telefone=telefone,
         email=email,

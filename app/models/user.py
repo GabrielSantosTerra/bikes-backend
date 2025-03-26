@@ -7,11 +7,12 @@ class Pessoa(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     nome_completo = Column(String, nullable=False)
+    fantasia = Column(String, nullable=True)
     cpf_cnpj = Column(String, unique=True, nullable=False)
-    telefone_celular = Column(String, nullable=True)
-    telefone_fixo = Column(String, nullable=True)
     email = Column(String, unique=True, nullable=False)
+    telefone_celular = Column(String, nullable=True)
     data_nascimento = Column(String, nullable=True)
+    regime = Column(String, nullable=True)
     tipo_pessoa = Column(String, nullable=True)
 
     usuario = relationship("Usuario", back_populates="pessoa")

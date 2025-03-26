@@ -4,11 +4,14 @@ from typing import Optional
 class PessoaCreate(BaseModel):
     """Schema para cadastro na tabela pessoas"""
     nome_completo: str
+    fantasia: Optional[str] = None
     cpf_cnpj: str
     telefone_celular: Optional[str] = None
-    telefone_fixo: Optional[str] = None
     email: EmailStr
     data_nascimento: Optional[str] = None
+    regime: Optional[str] = None
+    tipo_pessoa:str
+
 
 class UsuarioCreate(BaseModel):
     """Schema para cadastro na tabela usuarios"""
