@@ -109,34 +109,50 @@ def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     if not user or not verify_password(usuario.senha, user.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    access_token_expires = timedelta(minutes=60)
-    token = create_access_token(
-        data={"sub": user.email},
-        expires_delta=access_token_expires
-    )
+    access_token_expires = timedelta(minutes=15)
+    auth_token_expires = timedelta(hours=1)
 
-    # Criar a resposta JSON + adicionar o cookie
+    # Token curto apenas com status de login
+    access_token = create_access_token({"logged_in": True}, access_token_expires)
+
+    # Token com dados reais
+    auth_token = create_access_token({"sub": user.email}, auth_token_expires)
+
     response = JSONResponse(content={"message": "Login com sucesso", "id_usuario": user.id})
+
+    # Cookie leve: só diz que o usuário está logado
     response.set_cookie(
-        key="authToken",
-        value=token,
-        httponly=True,
-        secure=False,  # True apenas em produção HTTPS
+        key="access_token",
+        value=access_token,
+        httponly=False,
+        secure=False,  # True em prod
         samesite="Lax",
-        max_age=3600,
+        max_age=900,  # 15min
         path="/"
     )
+
+    # Cookie mais sensível com payload
+    response.set_cookie(
+        key="auth_token",
+        value=auth_token,
+        httponly=True,
+        secure=False,
+        samesite="Lax",
+        max_age=3600,  # 1h
+        path="/"
+    )
+
     return response
 
 @router.post("/auth/logout")
 def logout(response: Response):
+    response.delete_cookie("access_token")
     response.delete_cookie("authToken")
     return {"message": "Logout realizado com sucesso"}
 
 @router.get("/users/me", response_model=UserResponse)
 def read_users_me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("authToken")
-    print("🍪 COOKIE RECEBIDO:", token)
+    token = request.cookies.get("auth_token")  # 👈 agora usando auth_token
 
     if not token:
         raise HTTPException(status_code=401, detail="Token ausente")
