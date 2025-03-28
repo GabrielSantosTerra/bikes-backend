@@ -10,18 +10,16 @@ Base.metadata.create_all(bind=engine)
 # Criar a instância do FastAPI
 app = FastAPI()
 
-origins = [
-    "http://localhost",
-    "http://localhost:5000",
-]
+from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:3000"],  # ou domínio real
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Incluir rotas
 app.include_router(user_router)

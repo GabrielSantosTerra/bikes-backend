@@ -1,8 +1,9 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Response
+from fastapi import APIRouter, Depends, HTTPException, status, Response, Request
+from fastapi.security import OAuth2PasswordBearer
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 from jose import jwt, JWTError
-from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr
 
 from app.database.connection import get_db
@@ -103,41 +104,64 @@ def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
 
 @router.post("/auth/login/")
 def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
-
     user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
 
     if not user or not verify_password(usuario.senha, user.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    print(user.email)
+    access_token_expires = timedelta(minutes=60)
+    token = create_access_token(
+        data={"sub": user.email},
+        expires_delta=access_token_expires
+    )
 
-    token = create_access_token({"sub": user.email}, timedelta(minutes=60))
-    return {"token": token, "id_usuario": user.id}
+    # Criar a resposta JSON + adicionar o cookie
+    response = JSONResponse(content={"message": "Login com sucesso", "id_usuario": user.id})
+    response.set_cookie(
+        key="authToken",
+        value=token,
+        httponly=True,
+        secure=False,  # True apenas em produção HTTPS
+        samesite="Lax",
+        max_age=3600,
+        path="/"
+    )
+    return response
 
 @router.post("/auth/logout")
-def logout(response: Response, token: str = Depends(oauth2_scheme)):
-    """Realiza logout e remove o token"""
-    try:
-        jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
-        response.delete_cookie("authToken")
-        return {"message": "Logout realizado com sucesso"}
-    except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido ou expirado")
+def logout(response: Response):
+    response.delete_cookie("authToken")
+    return {"message": "Logout realizado com sucesso"}
 
 @router.get("/users/me", response_model=UserResponse)
-def read_users_me(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    """Busca informações do usuário autenticado"""
+def read_users_me(request: Request, db: Session = Depends(get_db)):
+    token = request.cookies.get("authToken")
+    print("🍪 COOKIE RECEBIDO:", token)
+
+    if not token:
+        raise HTTPException(status_code=401, detail="Token ausente")
+
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
+
         user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        if user is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Usuário não encontrado")
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+        if not pessoa:
+            raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
 
-        return user
+        return UserResponse(
+            nome=pessoa.nome_completo,
+            cpf=pessoa.cpf_cnpj,
+            nascimento=pessoa.data_nascimento,
+            telefone=pessoa.telefone_celular,
+            email=pessoa.email
+        )
     except JWTError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
 @router.post("/auth/request-password-reset")
 async def request_password_reset(request: PasswordResetRequest, db: Session = Depends(get_db)):
