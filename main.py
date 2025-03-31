@@ -3,6 +3,10 @@ from app.routes.user_routes import router as user_router
 from app.database.connection import Base, engine
 import app.models.user  # Import necessário para garantir a criação das tabelas
 from fastapi.middleware.cors import CORSMiddleware
+import sys
+import os
+
+sys.path.append(os.path.dirname(__file__))
 
 # Criar tabelas no banco de dados
 Base.metadata.create_all(bind=engine)
