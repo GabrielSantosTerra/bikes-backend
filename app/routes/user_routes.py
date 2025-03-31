@@ -111,36 +111,31 @@ def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
     if not user or not verify_password(usuario.senha, user.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    # Criação do access_token com expiração de 15 minutos
     access_token_expires = timedelta(minutes=15)
-    auth_token_expires = timedelta(hours=1)
-
-    # Token curto apenas com status de login
-    access_token = create_access_token({"logged_in": True}, access_token_expires)
-
-    # Token com dados reais
-    auth_token = create_access_token({"sub": user.email}, auth_token_expires)
+    access_token = create_access_token({"sub": user.email}, access_token_expires)
 
     response = JSONResponse(content={"message": "Login com sucesso", "id_usuario": user.id})
 
-    # Cookie leve: só diz que o usuário está logado
+    # Adiciona o access_token como cookie na resposta
     response.set_cookie(
         key="access_token",
         value=access_token,
-        httponly=False,
-        secure=False,  # True em prod
-        samesite="Lax",
+        httponly=True,
+        secure=False,
+        samesite="Strict",
         max_age=900,  # 15min
         path="/"
     )
 
-    # Cookie mais sensível com payload
+    # Adiciona o cookie de logged_user na resposta
     response.set_cookie(
-        key="auth_token",
-        value=auth_token,
-        httponly=True,
+        key="logged_user",
+        value="true",
+        httponly=False,
         secure=False,
-        samesite="Lax",
-        max_age=3600,  # 1h
+        samesite="Strict",
+        max_age=900,  # 15min
         path="/"
     )
 
@@ -149,12 +144,12 @@ def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
 @router.post("/auth/logout")
 def logout(response: Response):
     response.delete_cookie("access_token")
-    response.delete_cookie("authToken")
+    response.delete_cookie("logged_user")
     return {"message": "Logout realizado com sucesso"}
 
 @router.get("/users/me", response_model=UserResponse)
 def read_users_me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("auth_token")  # 👈 agora usando auth_token
+    token = request.cookies.get("access_token")  # 👈 agora usando access_token
 
     if not token:
         raise HTTPException(status_code=401, detail="Token ausente")
