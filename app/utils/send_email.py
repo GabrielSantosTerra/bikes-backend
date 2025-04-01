@@ -15,7 +15,7 @@ async def send_reset_email(to_email: str, reset_token: str):
         msg["To"] = to_email
         msg["Subject"] = "Redefinição de Senha"
 
-        body = f"Clique no link para redefinir sua senha: http://localhost:5000/pages/resetPassword?token={reset_token}"
+        body = f"Clique no link para redefinir sua senha: http://localhost:3000/resetPassword?token={reset_token}"
         msg.attach(MIMEText(body, "plain"))
 
         # Conectar ao servidor SMTP
