@@ -209,15 +209,26 @@ def reset_password(request: PasswordResetConfirm, db: Session = Depends(get_db))
 
     return {"message": "Senha redefinida com sucesso"}
 
+from fastapi import Request
+
 @router.put("/users/update", response_model=UserResponse)
 def update_user(
     dados: UpdateUsuario,
-    token: str = Depends(oauth2_scheme),
+    request: Request,
     db: Session = Depends(get_db)
 ):
     """Atualiza dados do usuário e sincroniza com a tabela de pessoas"""
+
+    logged_cookie = request.cookies.get("logged_user")
+    if not logged_cookie or logged_cookie != "true":
+        raise HTTPException(status_code=401, detail="Usuário não está logado")
+
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token de acesso não encontrado")
+
     try:
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_email = payload.get("sub")
 
         user = db.query(Usuario).filter(Usuario.email == user_email).first()
