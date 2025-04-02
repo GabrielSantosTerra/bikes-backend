@@ -175,10 +175,16 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Novo access_token (15min)
-        new_access_token = create_access_token({"sub": user.email}, timedelta(minutes=15))
+        # Novo access_token (7 dias)
+        new_access_token = create_access_token({"sub": user.email}, timedelta(days=7))
 
-        response = JSONResponse(content={"message": "Sessão renovada com sucesso"})
+        # Timestamp atual em milissegundos (como no Date.now())
+        now_timestamp = str(int(datetime.utcnow().timestamp() * 1000))
+
+        response = JSONResponse(content={
+            "message": "Sessão renovada com sucesso",
+            "access_token": new_access_token  # frontend pode ler diretamente
+        })
 
         response.set_cookie(
             key="access_token",
@@ -186,17 +192,17 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
             httponly=True,
             secure=False,
             samesite="Strict",
-            max_age=604800,  # 15min
+            max_age=604800,  # 7 dias
             path="/"
         )
 
         response.set_cookie(
             key="logged_user",
-            value="true",
+            value=now_timestamp,  # timestamp real usado no frontend
             httponly=False,
             secure=False,
             samesite="Strict",
-            max_age=604800,
+            max_age=604800,  # 7 dias
             path="/"
         )
 
