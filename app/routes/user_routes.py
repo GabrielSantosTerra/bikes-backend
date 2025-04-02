@@ -116,9 +116,12 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(usuario.senha, user.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    # Criação do access_token
+    # Criação do access_token e refresh_token
     access_token_expires = timedelta(minutes=15)
     access_token = create_access_token({"sub": user.email}, access_token_expires)
+
+    refresh_token_expires = timedelta(days=7)
+    refresh_token = create_access_token({"sub": user.email}, refresh_token_expires)  # mesmo método de geração
 
     response = JSONResponse(content={"message": "Login com sucesso", "id_usuario": user.id})
 
@@ -129,7 +132,7 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
         httponly=True,
         secure=False,
         samesite="Strict",
-        max_age=900,
+        max_age=90,
         path="/"
     )
 
@@ -140,21 +143,79 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
         httponly=False,
         secure=False,
         samesite="Strict",
-        max_age=900,
+        max_age=90,
+        path="/"
+    )
+
+    # refresh_token
+    response.set_cookie(
+        key="refresh_token",
+        value=refresh_token,
+        httponly=True,
+        secure=False,
+        samesite="Strict",
+        max_age=604800,  # 7 dias
         path="/"
     )
 
     return response
 
+@router.post("/auth/refresh-token")
+def refresh_token(request: Request, db: Session = Depends(get_db)):
+    refresh_token = request.cookies.get("refresh_token")
+
+    if not refresh_token:
+        raise HTTPException(status_code=401, detail="Refresh token ausente")
+
+    try:
+        payload = jwt.decode(refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Novo access_token (15min)
+        new_access_token = create_access_token({"sub": user.email}, timedelta(minutes=15))
+
+        response = JSONResponse(content={"message": "Sessão renovada com sucesso"})
+
+        response.set_cookie(
+            key="access_token",
+            value=new_access_token,
+            httponly=True,
+            secure=False,
+            samesite="Strict",
+            max_age=900,  # 15min
+            path="/"
+        )
+
+        response.set_cookie(
+            key="logged_user",
+            value="true",
+            httponly=False,
+            secure=False,
+            samesite="Strict",
+            max_age=900,
+            path="/"
+        )
+
+        return response
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Refresh token inválido ou expirado")
+
 @router.post("/auth/logout")
 def logout(response: Response):
     response.delete_cookie("access_token")
     response.delete_cookie("logged_user")
+    response.delete_cookie("refresh_token")
     return {"message": "Logout realizado com sucesso"}
 
 @router.get("/users/me", response_model=UserResponse)
 def read_users_me(request: Request, db: Session = Depends(get_db)):
     access_token = request.cookies.get("access_token")
+    refresh_token = request.cookies.get("refresh_token")
 
     def get_user_from_token(token: str):
         """Decodifica token e retorna usuário"""
@@ -170,43 +231,22 @@ def read_users_me(request: Request, db: Session = Depends(get_db)):
         # Tenta com access_token primeiro
         if access_token:
             user = get_user_from_token(access_token)
-            # Se refresh_token for válido, gera novo access_token e logged_user
-            new_access_token = create_access_token(
-                {"sub": user.email},
-                timedelta(minutes=15)
-            )
-
-            response = JSONResponse(content={
-                "nome": user.pessoa.nome_completo,
-                "cpf": user.pessoa.cpf_cnpj,
-                "nascimento": user.pessoa.data_nascimento,
-                "telefone": user.pessoa.telefone_celular,
-                "email": user.pessoa.email
-            })
-
-            response.set_cookie(
-                key="access_token",
-                value=new_access_token,
-                httponly=True,
-                secure=False,
-                samesite="Strict",
-                max_age=900,
-                path="/"
-            )
-
-            response.set_cookie(
-                key="logged_user",
-                value="true",
-                httponly=False,
-                secure=False,
-                samesite="Strict",
-                max_age=900,
-                path="/"
-            )
-
-            return response
         else:
             raise HTTPException(status_code=401, detail="Token ausente")
+
+        # Se chegou aqui, token já foi validado com sucesso
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+        if not pessoa:
+            raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
+
+        return UserResponse(
+            nome=pessoa.nome_completo,
+            cpf=pessoa.cpf_cnpj,
+            nascimento=pessoa.data_nascimento,
+            telefone=pessoa.telefone_celular,
+            email=pessoa.email
+        )
+
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
@@ -292,4 +332,3 @@ def update_user(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
-
