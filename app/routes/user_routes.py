@@ -219,17 +219,17 @@ def update_user(
 ):
     """Atualiza dados do usuário e sincroniza com a tabela de pessoas"""
 
-    logged_cookie = request.cookies.get("logged_user")
-    if not logged_cookie or logged_cookie != "true":
-        raise HTTPException(status_code=401, detail="Usuário não está logado")
-
     access_token = request.cookies.get("access_token")
     if not access_token:
-        raise HTTPException(status_code=401, detail="Token de acesso não encontrado")
+        raise HTTPException(status_code=401, detail="Token de acesso ausente")
 
     try:
+        # Decodifica o token para extrair o e-mail do usuário
         payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         user_email = payload.get("sub")
+
+        if not user_email:
+            raise HTTPException(status_code=401, detail="Token inválido")
 
         user = db.query(Usuario).filter(Usuario.email == user_email).first()
         if not user:
@@ -239,12 +239,12 @@ def update_user(
         if not pessoa:
             raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
 
-        # Atualiza Pessoa
+        # Atualiza os dados da pessoa
         pessoa.nome_completo = dados.pessoa.nome_completo
         pessoa.email = dados.pessoa.email
         pessoa.telefone_celular = dados.pessoa.telefone_celular
 
-        # Atualiza Usuario
+        # Atualiza os dados do usuário
         user.email = dados.usuario.email
         if dados.usuario.senha:
             user.senha = get_password_hash(dados.usuario.senha)
@@ -263,3 +263,4 @@ def update_user(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+
