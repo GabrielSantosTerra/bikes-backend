@@ -19,21 +19,6 @@ router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-class UserUpdate(BaseModel):
-    nome: str
-    email: str
-    telefone: str
-    cpf: str
-    nascimento: str
-    senha: str | None = None  # Senha é opcional
-
-class PasswordResetRequest(BaseModel):
-    email: str
-
-class PasswordResetConfirm(BaseModel):
-    token: str
-    nova_senha: str
-
 class PessoaCreate(BaseModel):
     nome_completo: str
     fantasia: str
@@ -51,6 +36,26 @@ class UsuarioCreate(BaseModel):
 class CadastroUsuario(BaseModel):
     pessoa: PessoaCreate
     usuario: UsuarioCreate
+
+class PessoaUpdate(BaseModel):
+    nome_completo: str
+    email: EmailStr
+    telefone_celular: str
+
+class UserUpdate(BaseModel):
+    email: EmailStr
+    senha: str | None = None
+
+class UpdateUsuario(BaseModel):
+    pessoa: PessoaUpdate
+    usuario: UserUpdate
+
+class PasswordResetRequest(BaseModel):
+    email: str
+
+class PasswordResetConfirm(BaseModel):
+    token: str
+    nova_senha: str
 
 def create_reset_token(user_id: int):
     """Gera um token de redefinição de senha com expiração"""
@@ -105,7 +110,7 @@ def criar_usuario(dados: CadastroUsuario, db: Session = Depends(get_db)):
     }
 
 @router.post("/auth/login/")
-def login(usuario: UsuarioCreate, db: Session = Depends(get_db)):
+def login(usuario: UserLogin, db: Session = Depends(get_db)):
     user = db.query(Usuario).filter(Usuario.email == usuario.email).first()
 
     if not user or not verify_password(usuario.senha, user.senha):
@@ -206,7 +211,7 @@ def reset_password(request: PasswordResetConfirm, db: Session = Depends(get_db))
 
 @router.put("/users/update", response_model=UserResponse)
 def update_user(
-    user_data: UserUpdate,
+    dados: UpdateUsuario,
     token: str = Depends(oauth2_scheme),
     db: Session = Depends(get_db)
 ):
@@ -219,31 +224,31 @@ def update_user(
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Buscar pessoa vinculada ao usuário
         pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
         if not pessoa:
             raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
 
-        # Atualiza os dados do usuário e da pessoa
-        user.email = user_data.email
-        pessoa.email = user_data.email
-        user.telefone = user_data.telefone
-        pessoa.telefone_celular = user_data.telefone
-        user.cpf = user_data.cpf
-        pessoa.cpf_cnpj = user_data.cpf
-        user.nascimento = user_data.nascimento
-        pessoa.data_nascimento = user_data.nascimento
-        user.nome = user_data.nome
-        pessoa.nome_completo = user_data.nome
+        # Atualiza Pessoa
+        pessoa.nome_completo = dados.pessoa.nome_completo
+        pessoa.email = dados.pessoa.email
+        pessoa.telefone_celular = dados.pessoa.telefone_celular
 
-        if user_data.senha:
-            user.senha = get_password_hash(user_data.senha)
+        # Atualiza Usuario
+        user.email = dados.usuario.email
+        if dados.usuario.senha:
+            user.senha = get_password_hash(dados.usuario.senha)
 
         db.commit()
         db.refresh(user)
         db.refresh(pessoa)
 
-        return user
+        return UserResponse(
+            nome=pessoa.nome_completo,
+            cpf=pessoa.cpf_cnpj,
+            nascimento=pessoa.data_nascimento,
+            telefone=pessoa.telefone_celular,
+            email=pessoa.email
+        )
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
