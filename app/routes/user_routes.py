@@ -116,31 +116,31 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
     if not user or not verify_password(usuario.senha, user.senha):
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    # Criação do access_token com expiração de 15 minutos
+    # Criação do access_token
     access_token_expires = timedelta(minutes=15)
     access_token = create_access_token({"sub": user.email}, access_token_expires)
 
     response = JSONResponse(content={"message": "Login com sucesso", "id_usuario": user.id})
 
-    # Adiciona o access_token como cookie na resposta
+    # access_token
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         secure=False,
         samesite="Strict",
-        max_age=900,  # 15min
+        max_age=900,
         path="/"
     )
 
-    # Adiciona o cookie de logged_user na resposta
+    # logged_user
     response.set_cookie(
         key="logged_user",
         value="true",
         httponly=False,
         secure=False,
         samesite="Strict",
-        max_age=900,  # 15min
+        max_age=900,
         path="/"
     )
 
@@ -154,30 +154,59 @@ def logout(response: Response):
 
 @router.get("/users/me", response_model=UserResponse)
 def read_users_me(request: Request, db: Session = Depends(get_db)):
-    token = request.cookies.get("access_token")  # 👈 agora usando access_token
+    access_token = request.cookies.get("access_token")
 
-    if not token:
-        raise HTTPException(status_code=401, detail="Token ausente")
-
-    try:
+    def get_user_from_token(token: str):
+        """Decodifica token e retorna usuário"""
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
 
         user = db.query(Usuario).filter(Usuario.email == email).first()
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        return user
 
-        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
-        if not pessoa:
-            raise HTTPException(status_code=404, detail="Dados da pessoa não encontrados")
+    try:
+        # Tenta com access_token primeiro
+        if access_token:
+            user = get_user_from_token(access_token)
+            # Se refresh_token for válido, gera novo access_token e logged_user
+            new_access_token = create_access_token(
+                {"sub": user.email},
+                timedelta(minutes=15)
+            )
 
-        return UserResponse(
-            nome=pessoa.nome_completo,
-            cpf=pessoa.cpf_cnpj,
-            nascimento=pessoa.data_nascimento,
-            telefone=pessoa.telefone_celular,
-            email=pessoa.email
-        )
+            response = JSONResponse(content={
+                "nome": user.pessoa.nome_completo,
+                "cpf": user.pessoa.cpf_cnpj,
+                "nascimento": user.pessoa.data_nascimento,
+                "telefone": user.pessoa.telefone_celular,
+                "email": user.pessoa.email
+            })
+
+            response.set_cookie(
+                key="access_token",
+                value=new_access_token,
+                httponly=True,
+                secure=False,
+                samesite="Strict",
+                max_age=900,
+                path="/"
+            )
+
+            response.set_cookie(
+                key="logged_user",
+                value="true",
+                httponly=False,
+                secure=False,
+                samesite="Strict",
+                max_age=900,
+                path="/"
+            )
+
+            return response
+        else:
+            raise HTTPException(status_code=401, detail="Token ausente")
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
