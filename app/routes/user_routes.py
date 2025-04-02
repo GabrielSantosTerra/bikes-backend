@@ -132,7 +132,7 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
         httponly=True,
         secure=False,
         samesite="Strict",
-        max_age=90,
+        max_age=604800,
         path="/"
     )
 
@@ -143,7 +143,7 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
         httponly=False,
         secure=False,
         samesite="Strict",
-        max_age=90,
+        max_age=604800,
         path="/"
     )
 
@@ -154,7 +154,7 @@ def login(usuario: UserLogin, db: Session = Depends(get_db)):
         httponly=True,
         secure=False,
         samesite="Strict",
-        max_age=604800,  # 7 dias
+        max_age=2592000,  # 7 dias
         path="/"
     )
 
@@ -186,7 +186,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
             httponly=True,
             secure=False,
             samesite="Strict",
-            max_age=900,  # 15min
+            max_age=604800,  # 15min
             path="/"
         )
 
@@ -196,7 +196,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
             httponly=False,
             secure=False,
             samesite="Strict",
-            max_age=900,
+            max_age=604800,
             path="/"
         )
 
