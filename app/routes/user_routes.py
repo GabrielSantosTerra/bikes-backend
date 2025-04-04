@@ -179,7 +179,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
         new_access_token = create_access_token({"sub": user.email}, timedelta(days=7))
 
         # Timestamp atual em milissegundos (como no Date.now())
-        now_timestamp = str(int(datetime.utcnow().timestamp() * 1000))
+        # now_timestamp = str(int(datetime.utcnow().timestamp() * 1000))
 
         response = JSONResponse(content={
             "message": "Sessão renovada com sucesso",
@@ -198,7 +198,7 @@ def refresh_token(request: Request, db: Session = Depends(get_db)):
 
         response.set_cookie(
             key="logged_user",
-            value=now_timestamp,  # timestamp real usado no frontend
+            value=True,  # timestamp real usado no frontend
             httponly=False,
             secure=False,
             samesite="Strict",
@@ -221,7 +221,6 @@ def logout(response: Response):
 @router.get("/users/me", response_model=UserResponse)
 def read_users_me(request: Request, db: Session = Depends(get_db)):
     access_token = request.cookies.get("access_token")
-    refresh_token = request.cookies.get("refresh_token")
 
     def get_user_from_token(token: str):
         """Decodifica token e retorna usuário"""
