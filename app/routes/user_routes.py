@@ -340,7 +340,7 @@ def update_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
-@router.post("/user/location")
+@router.post("/users/location")
 def create_user_location(
     endereco_data: EnderecoCreate,
     request: Request,
