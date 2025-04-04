@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
-from models.user_model import User, Pessoa
+from app.models.user_model import User, Pessoa
 from app.auth.security import get_password_hash
-from schemas.user_schema import UserResponse  # Import UserResponse
+from app.schemas.user_schema import UserResponse  # Import UserResponse
 
 def create_user_and_person(db: Session, nome: str, fantasia: str, cpf_cnpj: str, email: str, telefone: str, senha: str, nascimento: str, regime:str):
     hashed_password = get_password_hash(senha)

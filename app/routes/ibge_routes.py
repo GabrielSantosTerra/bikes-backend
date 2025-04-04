@@ -1,4 +1,4 @@
-from models.ibge_model import Pais, Regiao, Estado, Cidade
+from app.models.ibge_model import Pais, Regiao, Estado, Cidade
 from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 from fastapi.responses import JSONResponse

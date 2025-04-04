@@ -8,10 +8,10 @@ from pydantic import BaseModel, EmailStr
 from app.utils.validators import validar_cpf_cnpj_sem_mascara
 
 from app.database.connection import get_db
-from models.user_model import Usuario, Pessoa
-from schemas.user_schema import PessoaCreate, UserLogin, UserResponse, CadastroUsuario
-from models.endereco_model import Endereco
-from schemas.endereco_schema import EnderecoCreate
+from app.models.user_model import Usuario, Pessoa
+from app.schemas.user_schema import PessoaCreate, UserLogin, UserResponse, CadastroUsuario
+from app.models.endereco_model import Endereco
+from app.schemas.endereco_schema import EnderecoCreate
 from app.auth.security import get_password_hash, verify_password, create_access_token
 from config.settings import settings
 from app.utils.send_email import send_reset_email
