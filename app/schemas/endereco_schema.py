@@ -6,4 +6,5 @@ class EnderecoCreate(BaseModel):
     numero: str
     complemento: str | None = None
     bairro: str
-    id_cidade: int
+    nome_cidade: str
+    nome_estado: str
