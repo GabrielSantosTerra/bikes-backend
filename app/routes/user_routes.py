@@ -359,10 +359,6 @@ def create_user_location(
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Verifica se já tem endereço (opcional: para evitar duplicação)
-        if db.query(Endereco).filter(Endereco.id_pessoa == user.id_pessoa).first():
-            raise HTTPException(status_code=400, detail="Endereço já cadastrado para este usuário")
-
         # Cria endereço
         endereco = Endereco(
             id_pessoa=user.id_pessoa,
