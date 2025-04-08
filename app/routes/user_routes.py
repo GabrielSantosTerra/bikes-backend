@@ -405,3 +405,44 @@ def create_user_location(
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+
+@router.get("/users/enderecos")
+def listar_enderecos_usuario(request: Request, db: Session = Depends(get_db)):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token de acesso ausente")
+
+    try:
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+        if not pessoa:
+            raise HTTPException(status_code=404, detail="Pessoa não encontrada")
+
+        enderecos = db.query(Endereco).filter(Endereco.id_pessoa == pessoa.id).all()
+
+        def serialize_endereco(e):
+            return {
+                "id": e.id,
+                "cep": e.cep,
+                "logradouro": e.logradouro,
+                "numero": e.numero,
+                "complemento": e.complemento,
+                "bairro": e.bairro,
+                "nome_cidade": e.nome_cidade,
+                "nome_estado": e.nome_estado,
+                "endereco_primario": e.endereco_primario
+            }
+
+        return {
+            "enderecos": [serialize_endereco(e) for e in enderecos]
+        }
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+
