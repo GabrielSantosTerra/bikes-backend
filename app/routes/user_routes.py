@@ -350,7 +350,7 @@ def update_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
-@router.post("/users/location", response_model=UserResponse)
+@router.post("/users/location")
 def create_user_location(
     endereco_data: EnderecoCreate,
     request: Request,
@@ -368,36 +368,40 @@ def create_user_location(
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # 🔎 Buscar ID da cidade com base no nome
-        cidade = db.query(Cidade).filter(Cidade.nome == endereco_data.nome_cidade).first()
-        if not cidade:
-            raise HTTPException(status_code=404, detail="Cidade não encontrada")
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+        if not pessoa:
+            raise HTTPException(status_code=404, detail="Pessoa não encontrada")
 
-        endereco = Endereco(
-            id_pessoa=user.id_pessoa,
-            id_cidade=cidade.id,
+        # 🔄 Se marcar como endereço primário, desativa os outros
+        if endereco_data.endereco_primario:
+            db.query(Endereco).filter(Endereco.id_pessoa == pessoa.id).update(
+                {Endereco.endereco_primario: False}
+            )
+            db.commit()
+
+        # 🔍 Pega id da cidade baseado no nome
+        cidade = db.query(Cidade).filter(Cidade.nome == endereco_data.nome_cidade).first()
+        id_cidade = cidade.id if cidade else None
+
+        # Cria novo endereço
+        novo_endereco = Endereco(
+            id_pessoa=pessoa.id,
             cep=endereco_data.cep,
             logradouro=endereco_data.logradouro,
             numero=endereco_data.numero,
             complemento=endereco_data.complemento,
             bairro=endereco_data.bairro,
             nome_cidade=endereco_data.nome_cidade,
-            nome_estado=endereco_data.nome_estado
+            nome_estado=endereco_data.nome_estado,
+            endereco_primario=endereco_data.endereco_primario,
+            id_cidade=id_cidade
         )
 
-        db.add(endereco)
+        db.add(novo_endereco)
         db.commit()
-        db.refresh(endereco)
+        db.refresh(novo_endereco)
 
-        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
-
-        return UserResponse(
-            nome=pessoa.nome_completo,
-            cpf=pessoa.cpf_cnpj,
-            nascimento=pessoa.data_nascimento,
-            telefone=pessoa.telefone_celular,
-            email=pessoa.email
-        )
+        return {"message": "Endereço cadastrado com sucesso", "id_endereco": novo_endereco.id}
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
