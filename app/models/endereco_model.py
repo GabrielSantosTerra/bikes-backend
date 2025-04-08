@@ -13,6 +13,8 @@ class Endereco(Base):
     complemento = Column(String(255))
     bairro = Column(String(255), nullable=False)
     id_cidade = Column(Integer, ForeignKey("cidades.id"), nullable=False)
+    nome_cidade = Column(String(100))
+    nome_estado = Column(String(100))
 
     pessoa = relationship("Pessoa")
     cidade = relationship("Cidade")

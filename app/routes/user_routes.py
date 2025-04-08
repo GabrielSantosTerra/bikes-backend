@@ -12,6 +12,7 @@ from app.models.user_model import Usuario, Pessoa
 from app.schemas.user_schema import PessoaCreate, UserLogin, UserResponse, CadastroUsuario
 from app.models.endereco_model import Endereco
 from app.schemas.endereco_schema import EnderecoCreate
+from app.models.ibge_model import Cidade
 from app.auth.security import get_password_hash, verify_password, create_access_token
 from config.settings import settings
 from app.utils.send_email import send_reset_email
@@ -58,6 +59,15 @@ class PasswordResetRequest(BaseModel):
 class PasswordResetConfirm(BaseModel):
     token: str
     nova_senha: str
+class CreateLocation(BaseModel):
+    id_pessoa: int
+    cep: str
+    logradouro: str
+    numero: str
+    complemento: str | None = None
+    bairro: str
+    nome_cidade: str
+    nome_estado: str
 
 def create_reset_token(user_id: int):
     """Gera um token de redefinição de senha com expiração"""
@@ -340,7 +350,7 @@ def update_user(
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
-@router.post("/users/location")
+@router.post("/users/location", response_model=UserResponse)
 def create_user_location(
     endereco_data: EnderecoCreate,
     request: Request,
@@ -351,7 +361,6 @@ def create_user_location(
         raise HTTPException(status_code=401, detail="Token de acesso ausente")
 
     try:
-        # 🔐 Valida token
         payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email = payload.get("sub")
 
@@ -359,17 +368,36 @@ def create_user_location(
         if not user:
             raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
-        # Cria endereço
+        # 🔎 Buscar ID da cidade com base no nome
+        cidade = db.query(Cidade).filter(Cidade.nome == endereco_data.nome_cidade).first()
+        if not cidade:
+            raise HTTPException(status_code=404, detail="Cidade não encontrada")
+
         endereco = Endereco(
             id_pessoa=user.id_pessoa,
-            **endereco_data.dict()
+            id_cidade=cidade.id,
+            cep=endereco_data.cep,
+            logradouro=endereco_data.logradouro,
+            numero=endereco_data.numero,
+            complemento=endereco_data.complemento,
+            bairro=endereco_data.bairro,
+            nome_cidade=endereco_data.nome_cidade,
+            nome_estado=endereco_data.nome_estado
         )
 
         db.add(endereco)
         db.commit()
         db.refresh(endereco)
 
-        return {"message": "Endereço cadastrado com sucesso", "id_endereco": endereco.id}
+        pessoa = db.query(Pessoa).filter(Pessoa.id == user.id_pessoa).first()
+
+        return UserResponse(
+            nome=pessoa.nome_completo,
+            cpf=pessoa.cpf_cnpj,
+            nascimento=pessoa.data_nascimento,
+            telefone=pessoa.telefone_celular,
+            email=pessoa.email
+        )
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
