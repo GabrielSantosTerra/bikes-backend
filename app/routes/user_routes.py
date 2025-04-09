@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
-from app.utils.validators import validar_cpf_cnpj_sem_mascara
 
+from app.utils.validators import validar_cpf_cnpj_sem_mascara
 from app.database.connection import get_db
 from app.models.user_model import Usuario, Pessoa
 from app.schemas.user_schema import PessoaCreate, UserLogin, UserResponse, CadastroUsuario
