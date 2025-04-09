@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from app.routes.user_routes import router as user_router
 from app.routes.ibge_routes import router as ibge_router
-from routes.endereco_routes import router as endereco_router
+from app.routes.endereco_routes import router as endereco_router
 from app.database.connection import Base, engine
 from fastapi.middleware.cors import CORSMiddleware
 import sys
@@ -14,8 +14,6 @@ Base.metadata.create_all(bind=engine)
 
 # Criar a instância do FastAPI
 app = FastAPI()
-
-from fastapi.middleware.cors import CORSMiddleware
 
 app.add_middleware(
     CORSMiddleware,
