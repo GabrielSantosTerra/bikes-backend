@@ -4,7 +4,7 @@ from jose import jwt, JWTError
 
 from app.models.user_model import Usuario
 from app.models.endereco_model import Endereco
-from app.schemas.endereco_schema import EnderecoUpdate
+from app.schemas.endereco_schema import EnderecoUpdate, EnderecoResponse
 from app.database.connection import get_db
 from config.settings import settings
 
@@ -61,7 +61,6 @@ def update_endereco(
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
 
-
 @router.delete("/endereco/delete/{id}")
 def deletar_endereco(id: int, request: Request, db: Session = Depends(get_db)):
     access_token = request.cookies.get("access_token")
@@ -87,3 +86,28 @@ def deletar_endereco(id: int, request: Request, db: Session = Depends(get_db)):
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+
+@router.get("/endereco/{id}", response_model=EnderecoResponse)
+def get_endereco_by_id(id: int, request: Request, db: Session = Depends(get_db)):
+    access_token = request.cookies.get("access_token")
+    if not access_token:
+        raise HTTPException(status_code=401, detail="Token de acesso ausente")
+
+    try:
+        # Valida o token e obtém o usuário
+        payload = jwt.decode(access_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        email = payload.get("sub")
+        user = db.query(Usuario).filter(Usuario.email == email).first()
+        if not user:
+            raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+        # Busca o endereço e valida se pertence ao usuário
+        endereco = db.query(Endereco).filter(Endereco.id == id, Endereco.id_pessoa == user.id_pessoa).first()
+        if not endereco:
+            raise HTTPException(status_code=404, detail="Endereço não encontrado")
+
+        return endereco
+
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Token inválido ou expirado")
+

@@ -20,3 +20,13 @@ class EnderecoUpdate(BaseModel):
     nome_estado: str
     endereco_primario: bool
 
+class EnderecoResponse(BaseModel):
+    id: int
+    cep: str
+    logradouro: str
+    numero: str
+    complemento: str | None = None
+    bairro: str
+    nome_cidade: str
+    nome_estado: str
+    endereco_primario: bool
