@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from datetime import timedelta, datetime
 from jose import jwt, JWTError
 from pydantic import BaseModel, EmailStr
+from passlib.context import CryptContext
+
 
 from app.utils.validators import validar_cpf_cnpj_sem_mascara
 from app.database.connection import get_db
@@ -16,7 +18,6 @@ from app.models.ibge_model import Cidade
 from app.auth.security import get_password_hash, verify_password, create_access_token
 from config.settings import settings
 from app.utils.send_email import send_reset_email
-from passlib.context import CryptContext
 
 router = APIRouter()
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")

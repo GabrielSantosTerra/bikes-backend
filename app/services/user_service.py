@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+
 from app.models.user_model import User, Pessoa
 from app.auth.security import get_password_hash
 from app.schemas.user_schema import UserResponse  # Import UserResponse

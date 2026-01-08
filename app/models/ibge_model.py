@@ -1,6 +1,7 @@
 from sqlalchemy import Column, Integer, String, ForeignKey
 from sqlalchemy.orm import relationship
-from app.database.connection import Base  # ou from ... import declarative_base
+
+from app.database.connection import Base
 
 class Pais(Base):
     __tablename__ = "paises"

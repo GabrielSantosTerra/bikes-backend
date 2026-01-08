@@ -1,4 +1,5 @@
 import smtplib
+
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from config.settings import settings
@@ -26,6 +27,6 @@ async def send_reset_email(to_email: str, reset_token: str):
         server.quit()
 
         print(f"E-mail enviado para {to_email}")
-    
+
     except Exception as e:
         print(f"Erro ao enviar e-mail: {e}")

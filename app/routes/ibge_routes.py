@@ -1,9 +1,8 @@
-from app.models.ibge_model import Pais, Regiao, Estado, Cidade
-from fastapi import Depends, HTTPException
+from fastapi import Depends, APIRouter
 from sqlalchemy.orm import Session
-from fastapi.responses import JSONResponse
+
+from app.models.ibge_model import Pais, Regiao, Estado, Cidade
 from app.database.connection import get_db
-from fastapi import APIRouter
 
 router = APIRouter()
 
