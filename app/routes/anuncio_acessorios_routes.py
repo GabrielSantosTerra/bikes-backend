@@ -3,8 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.database.connection import get_db
 from app.models.anuncio_model import AnuncioAcessorio
+from app.models.estoque_model import Estoque
+
 from app.schemas.anuncio_schema import (
-    AnuncioAcessorioCreate,
+    AnuncioAcessorioCreateWithEstoque,
+    AnuncioAcessorioResponseWithEstoque,
     AnuncioAcessorioUpdate,
     AnuncioAcessorioOut,
 )
@@ -12,15 +15,34 @@ from app.schemas.anuncio_schema import (
 router = APIRouter(prefix="/anuncios/acessorios", tags=["Anúncios - Acessórios"])
 
 
-@router.post("/", response_model=AnuncioAcessorioOut)
-def create_anuncio_acessorio(payload: AnuncioAcessorioCreate, db: Session = Depends(get_db)):
-    anuncio = AnuncioAcessorio(**payload.model_dump())
+# -----------------------------------------
+# POST (novo) - cria anúncio + estoque
+# -----------------------------------------
+@router.post("/", response_model=AnuncioAcessorioResponseWithEstoque)
+def create_anuncio_acessorio(payload: AnuncioAcessorioCreateWithEstoque, db: Session = Depends(get_db)):
+    tipo_anuncio = "acessorios"
+
+    anuncio = AnuncioAcessorio(**payload.anuncio.model_dump())
     db.add(anuncio)
+    db.flush()
+
+    estoque = Estoque(
+        id_anuncio=anuncio.id,
+        tipo_anuncio=tipo_anuncio,
+        quantidade=payload.estoque.quantidade,
+    )
+    db.add(estoque)
+
     db.commit()
     db.refresh(anuncio)
-    return anuncio
+    db.refresh(estoque)
+
+    return {"anuncio": anuncio, "estoque": estoque}
 
 
+# -----------------------------------------
+# GET - retorna anúncio (como antes)
+# -----------------------------------------
 @router.get("/{anuncio_id}", response_model=AnuncioAcessorioOut)
 def get_anuncio_acessorio(anuncio_id: int, db: Session = Depends(get_db)):
     anuncio = db.query(AnuncioAcessorio).filter(AnuncioAcessorio.id == anuncio_id).first()
@@ -29,6 +51,9 @@ def get_anuncio_acessorio(anuncio_id: int, db: Session = Depends(get_db)):
     return anuncio
 
 
+# -----------------------------------------
+# PUT - atualiza anúncio (como antes)
+# -----------------------------------------
 @router.put("/{anuncio_id}", response_model=AnuncioAcessorioOut)
 def update_anuncio_acessorio(anuncio_id: int, payload: AnuncioAcessorioUpdate, db: Session = Depends(get_db)):
     anuncio = db.query(AnuncioAcessorio).filter(AnuncioAcessorio.id == anuncio_id).first()

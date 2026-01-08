@@ -4,7 +4,26 @@ from decimal import Decimal
 from datetime import datetime
 
 
-# --------- BIKES ---------
+# ---------------------------
+# Estoque (shared)
+# ---------------------------
+
+class EstoqueInfo(BaseModel):
+    quantidade: int = 0
+
+
+class EstoqueOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    id_anuncio: int
+    tipo_anuncio: str
+    quantidade: int
+
+
+# ---------------------------
+# BIKES
+# ---------------------------
 
 class AnuncioBikeCreate(BaseModel):
     id_pessoa: int
@@ -19,7 +38,6 @@ class AnuncioBikeCreate(BaseModel):
     preco: Decimal
     status: Optional[str] = "ativo"
 
-
 class AnuncioBikeUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
@@ -31,7 +49,6 @@ class AnuncioBikeUpdate(BaseModel):
     condicao: Optional[str] = None
     preco: Optional[Decimal] = None
     status: Optional[str] = None
-
 
 class AnuncioBikeOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -52,7 +69,19 @@ class AnuncioBikeOut(BaseModel):
     updated_at: datetime
 
 
-# --------- ACESSÓRIOS ---------
+class AnuncioBikeCreateWithEstoque(BaseModel):
+    anuncio: AnuncioBikeCreate
+    estoque: EstoqueInfo
+
+
+class AnuncioBikeResponseWithEstoque(BaseModel):
+    anuncio: AnuncioBikeOut
+    estoque: EstoqueOut
+
+
+# ---------------------------
+# ACESSÓRIOS
+# ---------------------------
 
 class AnuncioAcessorioCreate(BaseModel):
     id_pessoa: int
@@ -64,7 +93,6 @@ class AnuncioAcessorioCreate(BaseModel):
     preco: Decimal
     status: Optional[str] = "ativo"
 
-
 class AnuncioAcessorioUpdate(BaseModel):
     titulo: Optional[str] = None
     descricao: Optional[str] = None
@@ -73,7 +101,6 @@ class AnuncioAcessorioUpdate(BaseModel):
     condicao: Optional[str] = None
     preco: Optional[Decimal] = None
     status: Optional[str] = None
-
 
 class AnuncioAcessorioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -91,7 +118,19 @@ class AnuncioAcessorioOut(BaseModel):
     updated_at: datetime
 
 
-# --------- PEÇAS ---------
+class AnuncioAcessorioCreateWithEstoque(BaseModel):
+    anuncio: AnuncioAcessorioCreate
+    estoque: EstoqueInfo
+
+
+class AnuncioAcessorioResponseWithEstoque(BaseModel):
+    anuncio: AnuncioAcessorioOut
+    estoque: EstoqueOut
+
+
+# ---------------------------
+# PEÇAS
+# ---------------------------
 
 class AnuncioPecaCreate(BaseModel):
     id_pessoa: int
@@ -115,7 +154,6 @@ class AnuncioPecaUpdate(BaseModel):
     preco: Optional[Decimal] = None
     status: Optional[str] = None
 
-
 class AnuncioPecaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -131,3 +169,13 @@ class AnuncioPecaOut(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+
+
+class AnuncioPecaCreateWithEstoque(BaseModel):
+    anuncio: AnuncioPecaCreate
+    estoque: EstoqueInfo
+
+
+class AnuncioPecaResponseWithEstoque(BaseModel):
+    anuncio: AnuncioPecaOut
+    estoque: EstoqueOut

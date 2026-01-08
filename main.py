@@ -10,6 +10,7 @@ from app.database.connection import Base, engine
 from app.routes.anuncio_bikes_routes import router as anuncio_bikes_router
 from app.routes.anuncio_acessorios_routes import router as anuncio_acessorios_router
 from app.routes.anuncio_pecas_routes import router as anuncio_pecas_router
+from app.routes.estoque_routes import router as estoque_router
 
 sys.path.append(os.path.dirname(__file__))
 
@@ -35,3 +36,4 @@ app.include_router(endereco_router)
 app.include_router(anuncio_bikes_router)
 app.include_router(anuncio_acessorios_router)
 app.include_router(anuncio_pecas_router)
+app.include_router(estoque_router)
